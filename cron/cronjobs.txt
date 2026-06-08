@@ -1,0 +1,13 @@
+# Cron examples (edit to your system's cron)
+
+# Run per-game job every 10 minutes
+# */10 * * * * /usr/bin/env python3 /home/<user>/Desktop/reconGG/scripts/fetch.py --mode match_full --id <MATCH_ID> >> /var/log/recongg_fetch.log 2>&1
+
+# Run per-match job hourly
+# 0 * * * * /usr/bin/env python3 /home/<user>/Desktop/reconGG/scripts/fetch.py --mode match --id <MATCH_ID> >> /var/log/recongg_fetch.log 2>&1
+
+# Run per-tournament job daily at 03:00
+# 0 3 * * * /usr/bin/env python3 /home/<user>/Desktop/reconGG/scripts/fetch.py --mode tiers >> /var/log/recongg_fetch.log 2>&1
+
+# Per-round requires sub-minute frequency; cron cannot do 30s. Use a simple loop runner (see scripts/round_runner.sh)
+# See scripts/round_runner.sh

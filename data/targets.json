@@ -1,0 +1,11 @@
+{
+  "tournaments": [
+    {
+      "tournamentId": "unknown_tournament",
+      "matches": [],
+      "name": "unknown_tournament"
+    }
+  ],
+  "matches": [],
+  "notes": "Auto-discovered from Henrik Dev esports schedule and public valorant-api endpoints where possible"
+}

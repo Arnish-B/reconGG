@@ -1,0 +1,114 @@
+{
+  "spec": "VLR.gg API (API-SPEC.md)",
+  "sources": {
+    "riot_match": {
+      "name": "Riot Games Match API",
+      "reference": "https://developer.riotgames.com/apis#val-match-v1/GET_getMatch",
+      "note": "Primary source for raw match, game, round and player-level event data"
+    },
+    "valorant_api_tiers": {
+      "name": "Valorant-API competitive tiers",
+      "reference": "https://valorant-api.com/v1/competitivetiers",
+      "note": "Canonical tier/competitive rank metadata (ids, tier names, icons)"
+    },
+    "henrikdev": {
+      "name": "Henrik Dev unofficial Valorant API",
+      "reference": "https://api.henrikdev.xyz",
+      "note": "Convenience wrapper and some precomputed/normalized fields; use as secondary source when Riot access is restricted"
+    },
+    "vlr_local": {
+      "name": "VLR.gg internal / aggregation",
+      "reference": "API-SPEC.md (tournaments/streams/team assets)",
+      "note": "Tournament metadata, map picks/bans, streams, logos, nationality and other editorial metadata come from VLR.gg or tournament feeds"
+    }
+  },
+
+  "mapping": {
+    "tournaments.list": {
+      "tournaments[]": {
+        "id": { "source": "vlr_local", "endpoint": "internal/tournaments", "json_path": "$.tournaments[*].id", "confidence": "high" },
+        "name": { "source": "vlr_local", "endpoint": "internal/tournaments", "json_path": "$.tournaments[*].name", "confidence": "high" },
+        "date": { "source": "vlr_local", "endpoint": "internal/tournaments", "json_path": "$.tournaments[*].date", "confidence": "high" },
+        "region": { "source": "vlr_local", "endpoint": "internal/tournaments", "json_path": "$.tournaments[*].region", "confidence": "high" },
+        "tier": { "source": "valorant_api_tiers", "endpoint": "https://valorant-api.com/v1/competitivetiers", "json_path": "$.data[*].tiers or $.data[*].id (map to VLR tiers)", "confidence": "high" },
+        "vct": { "source": "vlr_local", "endpoint": "internal/tournaments", "json_path": "$.tournaments[*].vct", "confidence": "high" },
+        "live|upcoming|finished": { "source": "vlr_local", "endpoint": "internal/tournaments", "json_path": "$.tournaments[*].(live|upcoming|finished)", "confidence": "high" },
+        "matches[]": { "source": "riot_match", "endpoint": "GET /val/match/v1/matches/{matchId}", "json_path": "see riot response (match-level summary) or map from internal tournament match list", "confidence": "high" },
+        "lastRefreshed": { "source": "vlr_local", "endpoint": "internal/tournaments", "json_path": "$.tournaments[*].lastRefreshed", "confidence": "high" }
+      }
+    },
+
+    "tournament.get": {
+      "(single tournament object)": { "source": "vlr_local", "json_path": "$.tournament", "confidence": "high", "note": "Same as list entry but single object" }
+    },
+
+    "matches.list": {
+      "matches[]": {
+        "matchId": { "source": "riot_match", "endpoint": "GET /val/match/v1/matches/{matchId}", "json_path": "$.matchInfo.matchId or $.metadata.matchId", "confidence": "high" },
+        "teams[]": { "source": "riot_match (primary), vlr_local (for logos/branding)", "endpoint": "Riot match endpoint + internal team assets", "json_path": "$.teams[*] (riot: participants/teams), vlr: assets by team name", "confidence": "medium" },
+        "date": { "source": "riot_match", "json_path": "$.matchInfo.startTime or $.metadata.gameStartTime", "confidence": "high" },
+        "matchFormat": { "source": "vlr_local", "json_path": "$.matchFormat", "confidence": "high" },
+        "live": { "source": "riot_match (live status if available) or vlr_local", "confidence": "medium" },
+        "bracket": { "source": "vlr_local", "json_path": "$.bracket", "confidence": "high" },
+        "week": { "source": "vlr_local", "json_path": "$.week", "confidence": "high" },
+        "mapPicks": { "source": "vlr_local", "note": "Tournament-level picks/bans not provided by Riot", "confidence": "high" },
+        "streams": { "source": "vlr_local", "note": "External stream metadata added by VLR.gg", "confidence": "high" }
+      }
+    },
+
+    "match.detail": {
+      "match": {
+        "matchId": { "source": "riot_match", "json_path": "$.metadata.matchId or $.matchInfo.matchId", "confidence": "high" },
+        "teams[]": { "source": "riot_match (rosters & scores)", "json_path": "$.teams[*] or $.participants grouped by teamId", "confidence": "high" },
+        "players[]": {
+          "name": { "source": "riot_match", "json_path": "$.players[*].name or $.participants[*].playerName", "confidence": "high" },
+          "nationality": { "source": "vlr_local", "note": "Riot does not expose nationality in match payload; VLR or external profile DB required", "confidence": "low" },
+          "team": { "source": "riot_match", "json_path": "$.participants[*].teamId or teamName", "confidence": "high" }
+        },
+        "games[]": {
+          "map": { "source": "riot_match", "json_path": "$.rounds or $.games[*].map", "confidence": "high" },
+          "gameId": { "source": "riot_match (game-level id if present) or vlr_local", "confidence": "medium" },
+          "attackFirstTeam": { "source": "riot_match (round-level events)", "confidence": "medium" },
+          "totalTime": { "source": "riot_match", "json_path": "aggregate from round timestamps", "confidence": "high" },
+          "rounds[]": { "source": "riot_match", "json_path": "$.rounds[*] or $.events.rounds", "confidence": "high" },
+
+          "players[].stats": {
+            "agent": { "source": "riot_match (agent played per round)", "confidence": "high" },
+            "rounds|acs|kills|deaths|assists|kast|adr|headshotPct|firstKills|firstDeaths": { "source": "compute from Riot raw stats or use Henrik if precomputed", "json_path": "riot: participants[*].stats.* ; henrik: depends on endpoint", "confidence": "medium" }
+          }
+        }
+      }
+    },
+
+    "game.detail": {
+      "game": {
+        "map": { "source": "riot_match", "json_path": "$.rounds[*].map or $.game.map", "confidence": "high" },
+        "rounds[]": { "source": "riot_match", "json_path": "$.rounds[*]", "confidence": "high" },
+        "rounds[].players[].stats": { "source": "riot_match", "json_path": "$.rounds[*].players[*].stats", "confidence": "high" }
+      }
+    },
+
+    "round.detail": {
+      "round": {
+        "roundNumber": { "source": "riot_match", "json_path": "$.rounds[*].roundNumber", "confidence": "high" },
+        "attackTeam": { "source": "riot_match", "json_path": "$.rounds[*].attackTeam", "confidence": "high" },
+        "winType": { "source": "riot_match", "note": "deduce from round outcome/event (defuse/detonate/all_kill/timeout)", "confidence": "high" },
+        "winningTeam": { "source": "riot_match", "json_path": "$.rounds[*].winningTeam", "confidence": "high" },
+        "players[].stats": { "source": "riot_match", "json_path": "$.rounds[*].players[*].stats", "confidence": "high" }
+      }
+    }
+  },
+
+  "enums": {
+    "Region": { "source": "vlr_local (mapping)", "note": "VLR.gg defines 'intl','na','eu','apac','kr','cn','sa','oce','mn'", "confidence": "high" },
+    "Tier": { "source": "valorant_api_tiers", "endpoint": "https://valorant-api.com/v1/competitivetiers", "confidence": "high" },
+    "WinType": { "source": "riot_match; derive from round events", "confidence": "high" },
+    "Platform": { "source": "vlr_local or external stream lists", "confidence": "high" }
+  },
+
+  "notes": {
+    "compute_fields": "Fields such as ACS, ADR, KAST and percentages are not always returned verbatim by Riot. Compute from Riot raw stats (kills, deaths, damage, round presence) or use Henrik Dev endpoints if they provide precomputed values.",
+    "logos_and_streams": "Team logos and stream URLs are editorial/tournament metadata — VLR.gg must supply these or they can be scraped from tournament providers/stream pages.",
+    "nationality": "Player nationality is not present in Riot match payload; must be sourced from VLR.gg player profiles or other third-party DBs."
+  }
+}
