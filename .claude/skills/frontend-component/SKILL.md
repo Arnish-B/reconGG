@@ -2,7 +2,6 @@
 name: frontend-component
 description: Use when creating or refactoring a React/Next.js UI component in frontend/ — building shadcn/Aceternity components, layouts, or feature sections with Tailwind and TypeScript.
 ---
-
 # Frontend Component
 
 Build UI for the reconGG Next.js app the way this repo expects: TypeScript, Tailwind,
@@ -33,10 +32,10 @@ frontend/src/components/
 - [ ] **Responsive**: mobile-first, layer `sm: md: lg: xl:` breakpoints.
 - [ ] **Dark mode**: include `dark:` variants for colors/backgrounds/borders.
 - [ ] **shadcn first**: compose from `ui/` primitives; only reach for Aceternity for
-      animated/hero/premium sections.
+  animated/hero/premium sections.
 - [ ] **Accessibility**: semantic elements, `aria-*` where needed, keyboard-focusable.
 - [ ] **Server vs client**: only add `"use client"` when the component needs hooks,
-      state, or browser APIs.
+  state, or browser APIs.
 - [ ] Run `npm run lint` (from `frontend/`) before considering it done.
 
 ## Skeleton
