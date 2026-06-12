@@ -1,1 +1,13 @@
+# Knowledge graph
 .graphify/
+graphify-out/
+
+# Editor
+.vscode/
+
+# OS
+.DS_Store
+
+# Scratch / working notes
+misc.json
+misc.md
