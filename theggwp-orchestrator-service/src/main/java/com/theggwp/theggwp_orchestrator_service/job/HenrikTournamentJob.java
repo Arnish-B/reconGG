@@ -18,16 +18,21 @@ import com.theggwp.theggwp_orchestrator_service.workflow.step.FetchStep;
 import com.theggwp.theggwp_orchestrator_service.workflow.step.TransformStep;
 
 /**
- * Scheduled job that fetches tournaments/events from Henrik API and stores them in the database.
+ * Scheduled job that fetches esports schedule from Henrik API and stores tournaments/matches in the database.
+ * 
+ * Henrik API returns schedule items with:
+ * - state: "completed", "unstarted", "inProgress"
+ * - league: tournament/league info with region
+ * - match: match details with teams, scores, game type
  * 
  * The pipeline:
  * fetch (Void -> String JSON)
- *   -> parse and persist tournaments (String -> Void)
+ *   -> parse and persist schedule (String -> Void)
  */
 @Component
 public class HenrikTournamentJob extends ScheduledWorkflowJob<Void, Void> {
 
-    public static final String JOB_NAME = "henrik-tournaments";
+    public static final String JOB_NAME = "henrik-schedule";
 
     private final Workflow<Void, Void> workflow;
 
@@ -81,77 +86,134 @@ public class HenrikTournamentJob extends ScheduledWorkflowJob<Void, Void> {
             long fetchedAt = Instant.now().getEpochSecond();
             JSONObject response = new JSONObject(json);
             
-            // Check if response has 'data' field (common pattern in Henrik API)
-            JSONArray tournaments;
-            if (response.has("data")) {
-                Object dataObj = response.get("data");
-                if (dataObj instanceof JSONArray) {
-                    tournaments = (JSONArray) dataObj;
-                } else if (dataObj instanceof JSONObject) {
-                    // Single tournament wrapped in data
-                    tournaments = new JSONArray();
-                    tournaments.put(dataObj);
-                } else {
-                    tournaments = new JSONArray();
+            // Henrik schedule API returns: { status: 200, data: [...schedule items...] }
+            if (!response.has("data")) {
+                throw new IllegalArgumentException("Henrik API response missing 'data' field");
+            }
+            
+            JSONArray scheduleItems = response.getJSONArray("data");
+            
+            // Group schedule items by tournament to avoid duplicates
+            java.util.Map<String, JSONObject> tournaments = new java.util.HashMap<>();
+            java.util.Map<String, java.util.List<JSONObject>> tournamentMatches = new java.util.HashMap<>();
+            
+            for (int i = 0; i < scheduleItems.length(); i++) {
+                JSONObject item = scheduleItems.getJSONObject(i);
+                
+                // Extract tournament/league info
+                JSONObject league = item.optJSONObject("league");
+                JSONObject tournament = item.optJSONObject("tournament");
+                
+                if (league == null || tournament == null) {
+                    continue; // Skip items without league/tournament info
                 }
-            } else if (response.has("segments")) {
-                // Alternative structure
-                tournaments = response.getJSONArray("segments");
-            } else {
-                // Assume the whole response is the array
-                if (json.trim().startsWith("[")) {
-                    tournaments = new JSONArray(json);
-                } else {
-                    tournaments = new JSONArray();
-                    tournaments.put(response);
+                
+                // Use tournament name as ID (or combination of league + tournament)
+                String tournamentName = tournament.optString("name");
+                String leagueName = league.optString("name");
+                String tournamentId = tournamentName != null ? tournamentName : leagueName;
+                
+                if (tournamentId == null) {
+                    continue;
+                }
+                
+                // Build tournament object if not already seen
+                if (!tournaments.containsKey(tournamentId)) {
+                    JSONObject tournamentData = new JSONObject();
+                    tournamentData.put("id", tournamentId);
+                    tournamentData.put("name", leagueName);
+                    tournamentData.put("tournament_name", tournamentName);
+                    tournamentData.put("season", tournament.optString("season", ""));
+                    tournamentData.put("region", league.optString("region", ""));
+                    tournamentData.put("icon", league.optString("icon", ""));
+                    tournamentData.put("identifier", league.optString("identifier", ""));
+                    tournaments.put(tournamentId, tournamentData);
+                    tournamentMatches.put(tournamentId, new java.util.ArrayList<>());
+                }
+                
+                // Extract match if present
+                if (item.has("match") && !item.isNull("match")) {
+                    JSONObject matchData = item.getJSONObject("match");
+                    matchData.put("date", item.optString("date"));
+                    matchData.put("state", item.optString("state")); // completed, unstarted, inProgress
+                    matchData.put("vod", item.optString("vod"));
+                    tournamentMatches.get(tournamentId).add(matchData);
                 }
             }
-
-            for (int i = 0; i < tournaments.length(); i++) {
-                JSONObject tournament = tournaments.getJSONObject(i);
+            
+            // Persist all tournaments and their matches
+            for (java.util.Map.Entry<String, JSONObject> entry : tournaments.entrySet()) {
+                String tournamentId = entry.getKey();
+                JSONObject tournamentData = entry.getValue();
                 
-                // Extract tournament fields
-                String tournamentId = extractString(tournament, "id", "tournament_id", "eventId", "event_id");
-                String name = extractString(tournament, "name", "title", "event_name");
-                String date = extractString(tournament, "date", "start_date", "startDate", "dates");
-                String region = extractString(tournament, "region", "location");
-                String tier = extractString(tournament, "tier", "priority");
-                boolean vct = tournament.optBoolean("vct", false);
-                boolean live = tournament.optBoolean("live", false);
-                boolean upcoming = tournament.optBoolean("upcoming", false);
-                boolean finished = tournament.optBoolean("finished", false);
-                String lastRefreshed = tournament.optString("lastRefreshed", null);
-
-                // Store tournament
-                if (tournamentId != null) {
-                    tournamentRepo.upsertTournament(
-                        tournamentId, name, date, region, tier, vct, live, upcoming, finished,
-                        tournament.toString(), fetchedAt, lastRefreshed
-                    );
-
-                    // Extract and store embedded matches if present
-                    if (tournament.has("matches")) {
-                        JSONArray matches = tournament.getJSONArray("matches");
-                        persistMatches(matches, tournamentId, matchRepo, fetchedAt);
+                String name = extractString(tournamentData, "name");
+                String region = extractString(tournamentData, "region");
+                String season = extractString(tournamentData, "season");
+                
+                // Determine if VCT based on league identifier or name
+                String identifier = extractString(tournamentData, "identifier");
+                boolean vct = identifier != null && (
+                    identifier.contains("vct") || 
+                    identifier.contains("masters") || 
+                    identifier.contains("champions") ||
+                    identifier.contains("lock_in")
+                );
+                
+                // Determine tournament state from its matches
+                java.util.List<JSONObject> matches = tournamentMatches.get(tournamentId);
+                boolean hasLive = false;
+                boolean hasUpcoming = false;
+                boolean allFinished = !matches.isEmpty();
+                
+                for (JSONObject match : matches) {
+                    String state = match.optString("state");
+                    if ("inProgress".equals(state)) {
+                        hasLive = true;
+                        allFinished = false;
+                    } else if ("unstarted".equals(state)) {
+                        hasUpcoming = true;
+                        allFinished = false;
                     }
+                }
+                
+                // Store tournament
+                tournamentRepo.upsertTournament(
+                    tournamentId, name, null, region, null, vct, hasLive, hasUpcoming, allFinished,
+                    tournamentData.toString(), fetchedAt, null
+                );
+                
+                // Store matches
+                if (!matches.isEmpty()) {
+                    persistMatchList(matches, tournamentId, matchRepo, fetchedAt);
                 }
             }
         } catch (Exception e) {
-            throw new RuntimeException("Failed to parse and persist tournaments: " + e.getMessage(), e);
+            throw new RuntimeException("Failed to parse and persist schedule: " + e.getMessage(), e);
         }
     }
 
-    private static void persistMatches(JSONArray matches, String tournamentId, 
-                                        HenrikMatchRepository matchRepo, long fetchedAt) {
-        for (int i = 0; i < matches.length(); i++) {
-            JSONObject match = matches.getJSONObject(i);
+    private static void persistMatchList(java.util.List<JSONObject> matches, String tournamentId, 
+                                          HenrikMatchRepository matchRepo, long fetchedAt) {
+        for (JSONObject match : matches) {
+            String matchId = extractString(match, "id");
+            String date = extractString(match, "date");
+            String state = extractString(match, "state"); // completed, unstarted, inProgress
             
-            String matchId = extractString(match, "matchId", "match_id", "id");
-            String date = extractString(match, "date", "start_time", "startTime");
-            String matchFormat = extractString(match, "matchFormat", "match_format", "format", "bestOf");
-            boolean live = match.optBoolean("live", false);
-            String bracket = extractString(match, "bracket", "stage", "round");
-            Integer week = match.has("week") ? match.optInt("week") : null;
+            // Determine if live
+            boolean live = "inProgress".equals(state);
+            
+            // Extract game type info (bestOf/playAll)
+            JSONObject gameType = match.optJSONObject("game_type");
+            String matchFormat = null;
+            if (gameType != null) {
+                String type = gameType.optString("type"); // "bestOf" or "playAll"
+                int count = gameType.optInt("count", 0);
+                if ("bestOf".equals(type) && count > 0) {
+                    matchFormat = "BO" + count;
+                } else if ("playAll".equals(type)) {
+                    matchFormat = "PlayAll";
+                }
+            }
 
             // Extract team information
             JSONArray teams = match.optJSONArray("teams");
@@ -163,17 +225,17 @@ public class HenrikTournamentJob extends ScheduledWorkflowJob<Void, Void> {
                 JSONObject team1 = teams.getJSONObject(0);
                 JSONObject team2 = teams.getJSONObject(1);
                 
-                team1Name = extractString(team1, "name", "team_name");
-                team2Name = extractString(team2, "name", "team_name");
-                team1Score = team1.has("score") ? team1.optInt("score") : null;
-                team2Score = team2.has("score") ? team2.optInt("score") : null;
-                team1Winner = team1.has("winner") ? team1.optBoolean("winner") : null;
-                team2Winner = team2.has("winner") ? team2.optBoolean("winner") : null;
+                team1Name = extractString(team1, "name");
+                team2Name = extractString(team2, "name");
+                team1Score = team1.has("game_wins") ? team1.optInt("game_wins") : null;
+                team2Score = team2.has("game_wins") ? team2.optInt("game_wins") : null;
+                team1Winner = team1.has("has_won") ? team1.optBoolean("has_won") : null;
+                team2Winner = team2.has("has_won") ? team2.optBoolean("has_won") : null;
             }
 
             if (matchId != null) {
                 matchRepo.upsertMatch(
-                    matchId, tournamentId, date, matchFormat, live, bracket, week,
+                    matchId, tournamentId, date, matchFormat, live, null, null,
                     team1Name, team1Score, team1Winner, team2Name, team2Score, team2Winner,
                     match.toString(), fetchedAt
                 );

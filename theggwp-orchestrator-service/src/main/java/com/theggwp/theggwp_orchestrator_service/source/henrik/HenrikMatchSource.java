@@ -9,10 +9,13 @@ import org.springframework.web.reactive.function.client.WebClient;
 import java.time.Duration;
 
 /**
+ * DISABLED: Henrik API does not have a separate endpoint for fetching matches by tournament.
+ * Match data is included in the /valorant/v1/esports/schedule endpoint.
+ * 
  * Data source for fetching matches for a specific tournament from Henrik API.
  * This is a generic source that can be configured with a tournament ID.
  */
-@Component
+// @Component - DISABLED: No separate endpoint for tournament matches
 public class HenrikMatchSource implements DataSource<String> {
 
     private static final Logger log = LoggerFactory.getLogger(HenrikMatchSource.class);
@@ -41,8 +44,8 @@ public class HenrikMatchSource implements DataSource<String> {
             throw new IllegalArgumentException("tournament_id must be set before fetch");
         }
 
-        String url = properties.getBaseUrl() + 
-                     properties.getEventMatchesPath().replace("{event_id}", tournamentId);
+        // No endpoint available - Henrik only has /valorant/v1/esports/schedule
+        String url = properties.getBaseUrl() + "/valorant/v1/esports/schedule";
         log.info("Fetching matches for tournament {} from Henrik API: {}", tournamentId, url);
 
         try {
