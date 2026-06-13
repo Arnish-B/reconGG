@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, type ElementType } from "react";
+import { useEffect, useState, type ElementType } from "react";
 import { cn } from "@/lib/utils";
 import { useSpoiler } from "./SpoilerContext";
 
@@ -16,6 +16,13 @@ export function Spoiler({
   const { hide } = useSpoiler();
   const [revealed, setRevealed] = useState(false);
   const El: ElementType = as ?? "span";
+
+  // The master spoiler toggle is authoritative: when spoilers are hidden again,
+  // forget any individual "peek" so previously-revealed scores re-blur.
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    if (hide) setRevealed(false);
+  }, [hide]);
 
   if (!hide) {
     return (

@@ -12,7 +12,7 @@ export function SpoilerToggle() {
       onClick={() => setHide(!hide)}
       title="Toggle spoilers"
     >
-      <Switch checked={!hide} className="pointer-events-none data-[state=checked]:bg-blue/70" />
+      <Switch checked={!hide} className="pointer-events-none data-checked:bg-blue" />
       <span className="whitespace-nowrap font-mono-ggwp text-[9.5px] font-semibold tracking-[0.08em] text-ink-2">
         {hide ? "SPOILERS OFF" : "SPOILERS ON"}
       </span>
