@@ -32,8 +32,8 @@ public class HenrikTournamentSource implements DataSource<String> {
 
     @Override
     public String fetch() throws Exception {
-        String url = properties.getBaseUrl() + properties.getEventsPath();
-        log.info("Fetching tournaments from Henrik API: {}", url);
+        String url = properties.getBaseUrl() + properties.getSchedulePath();
+        log.info("Fetching esports schedule from Henrik API: {}", url);
 
         try {
             return webClient.get()
@@ -42,11 +42,11 @@ public class HenrikTournamentSource implements DataSource<String> {
                     .retrieve()
                     .bodyToMono(String.class)
                     .timeout(Duration.ofMillis(properties.getRequestTimeoutMs()))
-                    .doOnSuccess(json -> log.info("Successfully fetched tournaments from Henrik API"))
-                    .doOnError(e -> log.error("Failed to fetch tournaments from Henrik API", e))
+                    .doOnSuccess(json -> log.info("Successfully fetched esports schedule from Henrik API"))
+                    .doOnError(e -> log.error("Failed to fetch esports schedule from Henrik API", e))
                     .block();
         } catch (Exception e) {
-            log.error("Failed to fetch tournaments from Henrik API", e);
+            log.error("Failed to fetch esports schedule from Henrik API", e);
             throw e;
         }
     }

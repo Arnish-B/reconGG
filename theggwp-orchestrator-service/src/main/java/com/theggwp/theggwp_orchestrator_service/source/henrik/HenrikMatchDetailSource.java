@@ -10,6 +10,12 @@ import java.time.Duration;
 
 /**
  * Data source for fetching detailed match information including games and rounds from Henrik API.
+ * Uses the /valorant/v2/match/{matchid} endpoint which provides:
+ * - Match metadata (map, game length, rounds played)
+ * - All players with detailed stats
+ * - Round-by-round details (winning team, bomb plants, player locations)
+ * - Team information
+ * 
  * This is a stateful source that needs a match ID set before fetching.
  */
 @Component
@@ -42,7 +48,7 @@ public class HenrikMatchDetailSource implements DataSource<String> {
         }
 
         String url = properties.getBaseUrl() + 
-                     properties.getMatchDetailsPath().replace("{match_id}", matchId);
+                     properties.getMatchDetailPath().replace("{matchid}", matchId);
         log.info("Fetching match details for match {} from Henrik API: {}", matchId, url);
 
         try {
