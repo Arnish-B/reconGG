@@ -46,6 +46,28 @@
   --radius-2xl: calc(var(--radius) * 1.8);
   --radius-3xl: calc(var(--radius) * 2.2);
   --radius-4xl: calc(var(--radius) * 2.6);
+
+  /* ── theGGWP tactical-broadcast tokens ── */
+  --color-bg: var(--bg);
+  --color-surface: var(--surface);
+  --color-surface-2: var(--surface-2);
+  --color-surface-3: var(--surface-3);
+  --color-ink: var(--ink);
+  --color-ink-2: var(--ink-2);
+  --color-ink-3: var(--ink-3);
+  --color-red: var(--red);
+  --color-red-dim: var(--red-dim);
+  --color-blue: var(--blue);
+  --color-blue-dim: var(--blue-dim);
+  --color-line: var(--line);
+  --color-line-2: var(--line-2);
+
+  --font-disp: var(--font-disp), "Oswald", system-ui, sans-serif;
+  --font-ui: var(--font-ui), "Barlow", system-ui, sans-serif;
+  --font-score: var(--font-score), "Bebas Neue", sans-serif;
+  --font-mono-ggwp: var(--font-mono-ggwp), "Barlow Semi Condensed", system-ui, sans-serif;
+
+  --radius-ggwp: 14px;
 }
 
 :root {
@@ -117,14 +139,112 @@
   --sidebar-ring: oklch(0.556 0 0);
 }
 
+/* ── theGGWP raw custom properties (also read at runtime via getComputedStyle) ── */
+:root {
+  --red: #ff4655;
+  --red-dim: #ff6b76;
+  --blue: #4d8dff;
+  --blue-dim: #83adff;
+  --bg: #07080b;
+  --surface: #0c0e13;
+  --surface-2: #10131a;
+  --surface-3: #161a23;
+  --line: rgba(255, 255, 255, 0.06);
+  --line-2: rgba(255, 255, 255, 0.12);
+  --ink: #f5f7fb;
+  --ink-2: #a4adbe;
+  --ink-3: #646d80;
+  --redglow: rgba(255, 70, 85, 0.32);
+  --blueglow: rgba(77, 141, 255, 0.3);
+}
+
 @layer base {
   * {
     @apply border-border outline-ring/50;
   }
-  body {
-    @apply bg-background text-foreground;
-  }
   html {
-    @apply font-sans;
+    @apply font-ui;
   }
+  body {
+    background-color: var(--bg);
+    color: var(--ink);
+    min-height: 100vh;
+  }
+  ::selection {
+    background: var(--red);
+    color: #fff;
+  }
+  /* atmospheric base: faint tactical grid + red/blue vignette */
+  body::before {
+    content: "";
+    position: fixed;
+    inset: 0;
+    z-index: -2;
+    pointer-events: none;
+    background-image: linear-gradient(rgba(255, 255, 255, 0.018) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(255, 255, 255, 0.018) 1px, transparent 1px);
+    background-size: 64px 64px;
+    mask-image: radial-gradient(120% 90% at 50% 0%, #000 0%, transparent 75%);
+  }
+  body::after {
+    content: "";
+    position: fixed;
+    inset: 0;
+    z-index: -1;
+    pointer-events: none;
+    background: radial-gradient(900px 420px at 70% -10%, rgba(255, 70, 85, 0.08), transparent 70%),
+      radial-gradient(800px 420px at 8% 2%, rgba(77, 141, 255, 0.06), transparent 65%);
+  }
+}
+
+/* ── keyframes that can't be expressed as utilities ── */
+@keyframes ggwp-livering {
+  0% {
+    transform: scale(1);
+    opacity: 0.8;
+  }
+  70%,
+  100% {
+    transform: scale(2.6);
+    opacity: 0;
+  }
+}
+@keyframes ggwp-reveal {
+  from {
+    filter: blur(7px);
+    opacity: 0.3;
+  }
+  to {
+    filter: blur(0);
+    opacity: 1;
+  }
+}
+@keyframes ggwp-hudraw {
+  from {
+    stroke-dashoffset: 60;
+  }
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+@keyframes ggwp-sweep {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.animate-livering {
+  transform-origin: center;
+  animation: ggwp-livering 1.8s ease-out infinite;
+}
+.animate-reveal {
+  animation: ggwp-reveal 0.35s ease;
+}
+.animate-sweep {
+  transform-origin: 120px 120px;
+  animation: ggwp-sweep 4s linear infinite;
+}
+.hud-draw {
+  stroke-dasharray: 60;
+  animation: ggwp-hudraw 0.7s ease forwards;
 }
