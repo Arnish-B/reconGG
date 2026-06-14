@@ -1,6 +1,6 @@
 # Frontend Documentation
 
-Welcome to the frontend development documentation for **reconGG**. This folder contains all guidelines, best practices, and development instructions.
+Welcome to the frontend development documentation for **GGWP**. This folder contains all guidelines, best practices, and development instructions.
 
 ## 📄 Files
 

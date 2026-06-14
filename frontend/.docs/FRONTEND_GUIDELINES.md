@@ -1,6 +1,6 @@
 # Frontend Development Guidelines
 
-This document provides comprehensive guidelines and instructions for working with the reconGG frontend project, with emphasis on using **shadcn/ui** and **Aceternity UI** libraries.
+This document provides comprehensive guidelines and instructions for working with the GGWP frontend project, with emphasis on using **shadcn/ui** and **Aceternity UI** libraries.
 
 ## Table of Contents
 
@@ -256,7 +256,7 @@ export default function Hero() {
   return (
     <HeroHighlight>
       <h1 className="text-4xl font-bold">
-        Welcome to <Highlight>reconGG</Highlight>
+        Welcome to <Highlight>GGWP</Highlight>
       </h1>
       <p className="mt-4 text-gray-600">Build amazing gaming experiences</p>
       <ShimmerButton className="mt-6">Start Now</ShimmerButton>

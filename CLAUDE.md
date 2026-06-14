@@ -1,4 +1,4 @@
-# reconGG — Project Instructions for Claude
+# GGWP — Project Instructions for Claude
 
 These instructions are **mandatory** and override default behavior. They define the full
 lifecycle for working in this repository: how the project and its skills were set up, how
@@ -6,7 +6,7 @@ to develop frontend and backend code, how to review changes, and how to perform 
 actions. Re-read the relevant segment before acting in that phase. When in doubt, stop and
 ask rather than guessing.
 
-reconGG is a VALORANT esports (vlr.gg) reconnaissance app: a **Next.js + TypeScript +
+GGWP (domain: theggwp.com) is a VALORANT esports (vlr.gg) reconnaissance app: a **Next.js + TypeScript +
 Tailwind** frontend in `frontend/` and a JSON API backend (`backend/`, documented in
 `API-SPEC.md`) consumed via `X-API-Key` auth.
 
