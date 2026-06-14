@@ -1,15 +1,27 @@
 import type { Metadata } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
+import { Oswald, Barlow, Bebas_Neue, Barlow_Semi_Condensed } from "next/font/google";
 import "./globals.css";
+import { SpoilerProvider } from "@/components/common/SpoilerContext";
 
-const geistSans = Geist({
-  variable: "--font-geist-sans",
+const oswald = Oswald({
+  variable: "--font-disp",
   subsets: ["latin"],
+  weight: ["500", "600", "700"],
 });
-
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
+const barlow = Barlow({
+  variable: "--font-ui",
   subsets: ["latin"],
+  weight: ["400", "500", "600", "700"],
+});
+const bebas = Bebas_Neue({
+  variable: "--font-score",
+  subsets: ["latin"],
+  weight: ["400"],
+});
+const barlowSemi = Barlow_Semi_Condensed({
+  variable: "--font-mono-ggwp",
+  subsets: ["latin"],
+  weight: ["500", "600", "700"],
 });
 
 export const metadata: Metadata = {
@@ -25,9 +37,11 @@ export default function RootLayout({
   return (
     <html
       lang="en"
-      className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
+      className={`dark ${oswald.variable} ${barlow.variable} ${bebas.variable} ${barlowSemi.variable}`}
     >
-      <body className="min-h-full flex flex-col">{children}</body>
+      <body className="min-h-full font-ui text-ink antialiased">
+        <SpoilerProvider>{children}</SpoilerProvider>
+      </body>
     </html>
   );
 }
